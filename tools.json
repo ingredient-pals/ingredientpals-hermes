@@ -1,0 +1,142 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "search_recipes",
+      "description": "Search IngredientPals for published recipes. Supports free-text queries and structured filters. Use this to look up existing recipes before creating a new one.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "Free-text query matched against title, description, ingredients, instructions, and tags. Leave empty to browse."
+          },
+          "mealTypes": { "type": "array", "items": { "type": "string" }, "description": "Filter by meal type (breakfast, dinner, dessert, ...)." },
+          "dietary": { "type": "array", "items": { "type": "string" }, "description": "Dietary restrictions (vegan, gluten-free, keto, ...)." },
+          "tags": { "type": "array", "items": { "type": "string" }, "description": "User tags (italian, weeknight, quick, ...)." },
+          "minRating": { "type": "integer", "minimum": 0, "maximum": 5 },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 },
+          "offset": { "type": "integer", "minimum": 0, "default": 0 }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_recipe",
+      "description": "Fetch the full details of a single PUBLISHED recipe by numeric id. Use this before entering cooking mode so you have every ingredient and instruction.",
+      "parameters": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "integer", "description": "Published recipe id." }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "create_recipe_draft",
+      "description": "Create or iteratively update the user's active DRAFT recipe from exactly ONE of: a text prompt, a remote image URL, an inline base64 image, a web URL, or a YouTube URL. The result is a draft, NOT a published recipe. Call this multiple times to iterate: each call merges the new input with the existing draft via AI. Present the draft to the human, let them request more prompts, then call publish_draft when they are happy.",
+      "parameters": {
+        "type": "object",
+        "required": ["source"],
+        "properties": {
+          "source": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["type", "prompt"],
+                "properties": {
+                  "type": { "const": "prompt" },
+                  "prompt": { "type": "string", "minLength": 3, "maxLength": 4000, "description": "Free-text instruction. On first call: the initial recipe idea. On later calls: a tweak ('less spicy', 'swap beef for mushroom', 'add a side')." }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["type", "imageUrl"],
+                "properties": {
+                  "type": { "const": "imageUrl" },
+                  "imageUrl": { "type": "string", "format": "uri", "description": "http(s) URL of a PNG/JPEG/WebP image showing a recipe (note, screenshot, cookbook page)." }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["type", "data", "mimeType"],
+                "properties": {
+                  "type": { "const": "imageBase64" },
+                  "data": { "type": "string", "description": "Base64-encoded image bytes (data: prefix tolerated). Max 8 MB decoded." },
+                  "mimeType": { "type": "string", "enum": ["image/png", "image/jpeg", "image/webp"] }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["type", "url"],
+                "properties": {
+                  "type": { "const": "url" },
+                  "url": { "type": "string", "format": "uri", "description": "http(s) URL of a web page with a recipe; server fetches and extracts it." }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["type", "url"],
+                "properties": {
+                  "type": { "const": "youtube" },
+                  "url": { "type": "string", "format": "uri", "description": "youtube.com or youtu.be URL of a cooking video." }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "remix_recipe_draft",
+      "description": "Create an iterative DRAFT that remixes an existing published recipe. On first call, the base is the published source recipe; on later calls, the base is the latest draft. The response returns sourceRecipeId and remixPrompt — remember these and pass them to publish_draft so the published recipe is properly linked to its source.",
+      "parameters": {
+        "type": "object",
+        "required": ["id", "prompt"],
+        "properties": {
+          "id": { "type": "integer", "description": "Source (published) recipe id to remix." },
+          "prompt": { "type": "string", "minLength": 3, "maxLength": 2000, "description": "Plain-language remix instruction ('make it vegan', 'halve the sugar, add ginger')." }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_current_draft",
+      "description": "Fetch the current active draft for this user. Returns { draft: null } if there is none. Use this to re-read the draft when you need to present it to the human, or to check what was last generated.",
+      "parameters": { "type": "object", "properties": {} }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "discard_draft",
+      "description": "Delete the current active draft without publishing. Use when the user wants to start over or abandon the work.",
+      "parameters": { "type": "object", "properties": {} }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "publish_draft",
+      "description": "Publish the current active draft as a real recipe owned by the user. The published recipe is queued for moderation. If the draft was produced by remix_recipe_draft, pass sourceRecipeId and remixPrompt (returned by the last remix_recipe_draft call) so the server records the remix linkage.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sourceRecipeId": { "type": "integer", "description": "Optional. Set only when publishing a remix; use the value returned by remix_recipe_draft." },
+          "remixPrompt": { "type": "string", "description": "Optional. The remix instruction text. Pair with sourceRecipeId." },
+          "autoGenerateImage": { "type": "boolean", "default": true, "description": "Whether to auto-generate an image if the draft has none." }
+        }
+      }
+    }
+  }
+]

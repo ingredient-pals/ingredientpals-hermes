@@ -1,0 +1,23 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "IngredientPals",
+  "name_for_model": "ingredientpals",
+  "description_for_human": "Search, create, remix, and cook recipes on IngredientPals.",
+  "description_for_model": "Plugin for searching, creating, remixing, and cooking recipes on IngredientPals. Creation and remixing produce a DRAFT that the agent iterates with the user via further prompts before publishing. Tools: search_recipes, get_recipe, create_recipe_draft (from prompt / image / URL / YouTube / base64), remix_recipe_draft, get_current_draft, discard_draft, publish_draft. For the full draft -> iterate -> publish loop and step-by-step cooking mode, follow skill.md.",
+  "version": "1.0.0",
+  "api": {
+    "type": "openapi-tools",
+    "tools_url": "./tools.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "header": "Authorization",
+    "prefix": "Bearer ",
+    "instructions": "Obtain an API key from your IngredientPals account (POST /api/keys while logged in). Send it as: Authorization: Bearer ipk_..."
+  },
+  "base_url_env": "INGREDIENTPALS_BASE_URL",
+  "base_url_default": "https://ingredientpals.com",
+  "contact_email": "hello@ingredientpals.com",
+  "legal_info_url": "https://ingredientpals.com/legal",
+  "skill_files": ["skill.md"]
+}
