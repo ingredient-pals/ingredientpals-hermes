@@ -20,7 +20,13 @@ the user via additional prompts, then publishes when the user is happy. See
 
 ## Install
 
-### 1. Clone this repo
+### 1. Add the plugin to Hermes
+
+```bash
+hermes plugins install ingredientpals/ingredientpals-hermes
+```
+
+Or clone the repo manually:
 
 ```bash
 git clone https://github.com/ingredient-pals/ingredientpals-hermes.git
