@@ -1,0 +1,22 @@
+name: ingredientpals
+version: 1.0.0
+description: Search, create, remix, and cook recipes on IngredientPals.
+author: IngredientPals <hello@ingredientpals.com>
+
+provides_tools:
+  - ingredientpals_search_recipes
+  - ingredientpals_get_recipe
+  - ingredientpals_create_recipe_draft
+  - ingredientpals_remix_recipe_draft
+  - ingredientpals_get_current_draft
+  - ingredientpals_discard_draft
+  - ingredientpals_publish_draft
+
+requires_env:
+  - name: INGREDIENTPALS_API_KEY
+    description: >-
+      IngredientPals API key. Log in to https://ingredientpals.com, open the
+      user menu, choose "API Keys", and click "New key". The key starts with
+      "ipk_" and is only shown once at creation time.
+    url: https://ingredientpals.com
+    secret: true
