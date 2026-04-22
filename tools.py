@@ -21,8 +21,9 @@ from urllib import request as urllib_request
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BASE_URL = "https://ingredientpals.com"
+DEFAULT_BASE_URL = "https://www.ingredientpals.com"
 DEFAULT_TIMEOUT_S = 120
+MAX_REDIRECTS = 5
 
 
 def _base_url() -> str:
@@ -64,28 +65,56 @@ def _request(method: str, path: str, body: Any | None = None) -> tuple[int, Any]
         data = json.dumps(body).encode("utf-8")
         headers["Content-Type"] = "application/json"
 
-    req = urllib_request.Request(url=url, data=data, method=method, headers=headers)
-    try:
-        with urllib_request.urlopen(req, timeout=DEFAULT_TIMEOUT_S) as resp:
-            status = resp.getcode()
-            raw = resp.read().decode("utf-8", errors="replace")
-    except urllib_error.HTTPError as e:
-        status = e.code
+    # Follow redirects manually so POST/DELETE are preserved with body on
+    # 307/308 responses. Python's stdlib redirect handler converts POST to
+    # GET on 301/302/303 (which is correct) but raises on 307/308 from
+    # non-GET methods, which is what the IngredientPals apex-to-www
+    # redirect used to trigger.
+    current_url = url
+    current_method = method
+    current_data = data
+    raw = ""
+    status = 0
+    for hop in range(MAX_REDIRECTS + 1):
+        req = urllib_request.Request(
+            url=current_url, data=current_data, method=current_method, headers=headers
+        )
         try:
-            raw = e.read().decode("utf-8", errors="replace")
-        except Exception:
-            raw = ""
-    except urllib_error.URLError as e:
-        return 0, {
-            "error": {
-                "code": "network_error",
-                "message": f"Could not reach {url}: {e.reason}",
+            with urllib_request.urlopen(req, timeout=DEFAULT_TIMEOUT_S) as resp:
+                status = resp.getcode()
+                raw = resp.read().decode("utf-8", errors="replace")
+                break
+        except urllib_error.HTTPError as e:
+            status = e.code
+            if status in (301, 302, 303, 307, 308) and hop < MAX_REDIRECTS:
+                location = e.headers.get("Location") if e.headers else None
+                if location:
+                    next_url = urllib_parse.urljoin(current_url, location)
+                    # 301/302/303 convert POST/PUT/DELETE to GET; 307/308
+                    # preserve method and body.
+                    if status in (301, 302, 303) and current_method != "HEAD":
+                        current_method = "GET"
+                        current_data = None
+                        headers.pop("Content-Type", None)
+                    current_url = next_url
+                    continue
+            try:
+                raw = e.read().decode("utf-8", errors="replace")
+            except Exception:
+                raw = ""
+            break
+        except urllib_error.URLError as e:
+            return 0, {
+                "error": {
+                    "code": "network_error",
+                    "message": f"Could not reach {current_url}: {e.reason}",
+                }
             }
-        }
-    except Exception as e:  # noqa: BLE001
-        return 0, {
-            "error": {"code": "unexpected_error", "message": str(e)},
-        }
+        except Exception as e:  # noqa: BLE001
+            return 0, {
+                "error": {"code": "unexpected_error", "message": str(e)},
+            }
+
 
     if not raw:
         return status, None
